@@ -123,7 +123,7 @@
             isPlaying = true;
 
             // Set a timer to stop the sound after the specified duration (in minutes)
-            timer = setTimeout(stopSound, duration * 6000); // 60000 ms = 1 minute
+            timer = setTimeout(stopSound, duration * 60000); // 60000 ms = 1 minute
         }
 
         function stopSound() {
@@ -132,6 +132,7 @@
                 oscillator = null;
                 isPlaying = false;
                 clearTimeout(timer);
+                document.getElementById('toggleButton').textContent = "Play";
             }
         }
 
