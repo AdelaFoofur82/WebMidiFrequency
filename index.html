@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Synthesizer</title>
+    <!-- Bootstrap CSS CDN -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+        // Function to update the URL based on the current selections
+        function updateURLParams(frequency, waveType) {
+            const params = new URLSearchParams(window.location.search);
+            params.set('frequency', frequency);
+            params.set('waveType', waveType);
+            window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+        }
+
+        // Function to load parameters from the URL
+        function loadParamsFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const frequency = params.get('frequency') || '440';
+            const waveType = params.get('waveType') || 'square';
+
+            document.getElementById('frequency').value = frequency;
+            document.getElementById('waveType').value = waveType;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadParamsFromURL();  // Set form values from URL params
+
+            document.getElementById('frequency').addEventListener('change', function () {
+                const frequency = this.value;
+                const waveType = document.getElementById('waveType').value;
+                updateURLParams(frequency, waveType);
+            });
+
+            document.getElementById('waveType').addEventListener('change', function () {
+                const waveType = this.value;
+                const frequency = document.getElementById('frequency').value;
+                updateURLParams(frequency, waveType);
+            });
+        });
+    </script>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title text-center">Sound Synthesizer</h1>
+                <form id="soundForm">
+                    <div class="form-group">
+                        <label for="frequency">Frequency:</label>
+                        <select id="frequency" name="frequency" class="form-control">
+                            <option value="174">174 Hz: Alivia el dolor y el estrés</option>
+                            <option value="285">285 Hz: Sana los tejidos y los órganos</option>
+                            <option value="396">396 Hz: Elimina el miedo</option>
+                            <option value="417">417 Hz: Elimina la negatividad</option>
+                            <option value="528">528 Hz: Repara el ADN, trae transformaciones positivas</option>
+                            <option value="639">639 Hz: Trae amor y compasión a la vida</option>
+                            <option value="741">741 Hz: Desintoxica las células y los órganos</option>
+                            <option value="852">852 Hz: Despierta la intuición, eleva la energía a nivel celular</option>
+                            <option value="963">963 Hz: Conecta con el Ser Superior. Crea un espacio para la unidad.</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="waveType">Wave Type:</label>
+                        <select id="waveType" name="waveType" class="form-control">
+                            <option value="sine">Sine</option>
+                            <option value="square" selected>Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <button type="button" id="toggleButton" class="btn btn-primary btn-block">Play</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var context = null;
+        var oscillator = null;
+        var isPlaying = false;
+
+        function getOrCreateContext() {
+            if (!context) {
+                context = new AudioContext();
+            }
+            return context;
+        }
+
+        function playSound(frequency, type) {
+            getOrCreateContext();
+
+            // If an oscillator is already playing, stop it before creating a new one
+            if (oscillator) {
+                oscillator.stop();
+            }
+
+            oscillator = context.createOscillator();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency, context.currentTime); // Set frequency
+            oscillator.connect(context.destination);
+
+            oscillator.start(0);
+            isPlaying = true;
+        }
+
+        function stopSound() {
+            if (oscillator) {
+                oscillator.stop();
+                oscillator = null;
+                isPlaying = false;
+            }
+        }
+
+        document.getElementById('toggleButton').addEventListener('click', function () {
+            var frequency = parseFloat(document.getElementById('frequency').value);
+            var waveType = document.getElementById('waveType').value;
+
+            if (isPlaying) {
+                stopSound();
+                this.textContent = "Play";
+            } else {
+                playSound(frequency, waveType);
+                this.textContent = "Stop";
+            }
+        });
+    </script>
+
+    <!-- Bootstrap JS and dependencies (Popper.js and jQuery) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
