@@ -8,21 +8,24 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script>
         // Function to update the URL based on the current selections
-        function updateURLParams(frequency, waveType) {
+        function updateURLParams(frequency, waveType, duration) {
             const params = new URLSearchParams(window.location.search);
             params.set('frequency', frequency);
             params.set('waveType', waveType);
+            params.set('duration', duration);
             window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
         }
 
         // Function to load parameters from the URL
         function loadParamsFromURL() {
             const params = new URLSearchParams(window.location.search);
-            const frequency = params.get('frequency') || '440';
-            const waveType = params.get('waveType') || 'square';
+            const frequency = params.get('frequency') || '174';
+            const waveType = params.get('waveType') || 'sine';
+            const duration = params.get('duration') || '3';
 
             document.getElementById('frequency').value = frequency;
             document.getElementById('waveType').value = waveType;
+            document.getElementById('duration').value = duration;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -31,13 +34,22 @@
             document.getElementById('frequency').addEventListener('change', function () {
                 const frequency = this.value;
                 const waveType = document.getElementById('waveType').value;
-                updateURLParams(frequency, waveType);
+                const duration = document.getElementById('duration').value;
+                updateURLParams(frequency, waveType, duration);
             });
 
             document.getElementById('waveType').addEventListener('change', function () {
                 const waveType = this.value;
                 const frequency = document.getElementById('frequency').value;
-                updateURLParams(frequency, waveType);
+                const duration = document.getElementById('duration').value;
+                updateURLParams(frequency, waveType, duration);
+            });
+
+            document.getElementById('duration').addEventListener('change', function () {
+                const duration = this.value;
+                const frequency = document.getElementById('frequency').value;
+                const waveType = document.getElementById('waveType').value;
+                updateURLParams(frequency, waveType, duration);
             });
         });
     </script>
@@ -65,11 +77,15 @@
                     <div class="form-group">
                         <label for="waveType">Wave Type:</label>
                         <select id="waveType" name="waveType" class="form-control">
-                            <option value="sine">Sine</option>
-                            <option value="square" selected>Square</option>
+                            <option value="sine" selected>Sine</option>
+                            <option value="square">Square</option>
                             <option value="sawtooth">Sawtooth</option>
                             <option value="triangle">Triangle</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="duration">Duration (minutes):</label>
+                        <input type="number" id="duration" name="duration" class="form-control" value="3" min="1">
                     </div>
                     <button type="button" id="toggleButton" class="btn btn-primary btn-block">Play</button>
                 </form>
@@ -81,6 +97,7 @@
         var context = null;
         var oscillator = null;
         var isPlaying = false;
+        var timer = null;
 
         function getOrCreateContext() {
             if (!context) {
@@ -89,7 +106,7 @@
             return context;
         }
 
-        function playSound(frequency, type) {
+        function playSound(frequency, type, duration) {
             getOrCreateContext();
 
             // If an oscillator is already playing, stop it before creating a new one
@@ -104,6 +121,9 @@
 
             oscillator.start(0);
             isPlaying = true;
+
+            // Set a timer to stop the sound after the specified duration (in minutes)
+            timer = setTimeout(stopSound, duration * 6000); // 60000 ms = 1 minute
         }
 
         function stopSound() {
@@ -111,18 +131,20 @@
                 oscillator.stop();
                 oscillator = null;
                 isPlaying = false;
+                clearTimeout(timer);
             }
         }
 
         document.getElementById('toggleButton').addEventListener('click', function () {
             var frequency = parseFloat(document.getElementById('frequency').value);
             var waveType = document.getElementById('waveType').value;
+            var duration = parseFloat(document.getElementById('duration').value);
 
             if (isPlaying) {
                 stopSound();
                 this.textContent = "Play";
             } else {
-                playSound(frequency, waveType);
+                playSound(frequency, waveType, duration);
                 this.textContent = "Stop";
             }
         });
