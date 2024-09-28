@@ -64,6 +64,11 @@
                 const waveType = document.getElementById('waveType').value;
                 const duration = document.getElementById('duration').value;
                 updateURLParams(frequency, waveType, duration, volumeOscillation);
+
+                // Update volume oscillation dynamically
+                if (isPlaying) {
+                    updateVolumeOscillation(parseFloat(volumeOscillation));
+                }
             });
         });
     </script>
@@ -118,6 +123,7 @@
         var gainNode = null;
         var isPlaying = false;
         var timer = null;
+        var currentOscillationFrequency = 0;
 
         function getOrCreateContext() {
             if (!context) {
@@ -152,6 +158,8 @@
             oscillator.start(0);
             isPlaying = true;
 
+            // Set the initial oscillation frequency
+            currentOscillationFrequency = oscillationFrequency;
             if (oscillationFrequency > 0) {
                 // Start volume oscillation loop
                 startVolumeOscillation(oscillationFrequency);
@@ -166,18 +174,22 @@
             var oscillationPeriod = oscillationFrequency * 2; // Total time for full up and down
 
             function loopVolumeOscillation() {
+                if (!isPlaying) return; // Stop oscillating if sound is no longer playing
+
                 // Set volume to 1 (max), then descend to 0, then ascend back to 1
                 gainNode.gain.setValueAtTime(1, context.currentTime); // Start at full volume
                 gainNode.gain.linearRampToValueAtTime(0, context.currentTime + oscillationFrequency); // Fade out
                 gainNode.gain.linearRampToValueAtTime(1, context.currentTime + oscillationPeriod); // Fade in
 
                 // Recursively call this function after one oscillation period
-                if (isPlaying) {
-                    setTimeout(loopVolumeOscillation, oscillationPeriod * 1000); // Convert seconds to milliseconds
-                }
+                setTimeout(loopVolumeOscillation, oscillationPeriod * 1000); // Convert seconds to milliseconds
             }
 
             loopVolumeOscillation(); // Start the loop
+        }
+
+        function updateVolumeOscillation(oscillationFrequency) {
+            currentOscillationFrequency = oscillationFrequency; // Update the current oscillation frequency
         }
 
         function stopSound() {
