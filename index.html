@@ -8,11 +8,12 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script>
         // Function to update the URL based on the current selections
-        function updateURLParams(frequency, waveType, duration) {
+        function updateURLParams(frequency, waveType, duration, volumeOscillation) {
             const params = new URLSearchParams(window.location.search);
             params.set('frequency', frequency);
             params.set('waveType', waveType);
             params.set('duration', duration);
+            params.set('volumeOscillation', volumeOscillation);
             window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
         }
 
@@ -22,10 +23,12 @@
             const frequency = params.get('frequency') || '174';
             const waveType = params.get('waveType') || 'sine';
             const duration = params.get('duration') || '3';
+            const volumeOscillation = params.get('volumeOscillation') || '0';
 
             document.getElementById('frequency').value = frequency;
             document.getElementById('waveType').value = waveType;
             document.getElementById('duration').value = duration;
+            document.getElementById('volumeOscillation').value = volumeOscillation;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -35,21 +38,32 @@
                 const frequency = this.value;
                 const waveType = document.getElementById('waveType').value;
                 const duration = document.getElementById('duration').value;
-                updateURLParams(frequency, waveType, duration);
+                const volumeOscillation = document.getElementById('volumeOscillation').value;
+                updateURLParams(frequency, waveType, duration, volumeOscillation);
             });
 
             document.getElementById('waveType').addEventListener('change', function () {
                 const waveType = this.value;
                 const frequency = document.getElementById('frequency').value;
                 const duration = document.getElementById('duration').value;
-                updateURLParams(frequency, waveType, duration);
+                const volumeOscillation = document.getElementById('volumeOscillation').value;
+                updateURLParams(frequency, waveType, duration, volumeOscillation);
             });
 
             document.getElementById('duration').addEventListener('change', function () {
                 const duration = this.value;
                 const frequency = document.getElementById('frequency').value;
                 const waveType = document.getElementById('waveType').value;
-                updateURLParams(frequency, waveType, duration);
+                const volumeOscillation = document.getElementById('volumeOscillation').value;
+                updateURLParams(frequency, waveType, duration, volumeOscillation);
+            });
+
+            document.getElementById('volumeOscillation').addEventListener('input', function () {
+                const volumeOscillation = this.value;
+                const frequency = document.getElementById('frequency').value;
+                const waveType = document.getElementById('waveType').value;
+                const duration = document.getElementById('duration').value;
+                updateURLParams(frequency, waveType, duration, volumeOscillation);
             });
         });
     </script>
@@ -87,6 +101,11 @@
                         <label for="duration">Duration (minutes):</label>
                         <input type="number" id="duration" name="duration" class="form-control" value="1" min="1">
                     </div>
+                    <div class="form-group">
+                        <label for="volumeOscillation">Volume Oscillation Frequency (seconds):</label>
+                        <input type="range" id="volumeOscillation" name="volumeOscillation" class="form-control-range" min="0" max="1" step="0.01" value="0">
+                        <small id="frequencyHelp" class="form-text text-muted">0: Constant volume. 1: Full oscillation every second.</small>
+                    </div>
                     <button type="button" id="toggleButton" class="btn btn-primary btn-block">Play</button>
                 </form>
             </div>
@@ -96,20 +115,31 @@
     <script>
         var context = null;
         var oscillator = null;
+        var gainNode = null;
         var isPlaying = false;
         var timer = null;
 
         function getOrCreateContext() {
             if (!context) {
-                context = new AudioContext();
+                context = new (window.AudioContext || window.webkitAudioContext)();
             }
             return context;
         }
 
-        function playSound(frequency, type, duration) {
-            getOrCreateContext();
+        function getOrCreateGainNode() {
+            if (!gainNode) {
+                gainNode = context.createGain();
+                gainNode.gain.setValueAtTime(1, context.currentTime); // Initial volume at max
+                gainNode.connect(context.destination);
+            }
+            return gainNode;
+        }
 
-            // If an oscillator is already playing, stop it before creating a new one
+        function playSound(frequency, type, duration, oscillationFrequency) {
+            getOrCreateContext();
+            getOrCreateGainNode();
+
+            // Stop previous oscillator if one is playing
             if (oscillator) {
                 oscillator.stop();
             }
@@ -117,13 +147,37 @@
             oscillator = context.createOscillator();
             oscillator.type = type;
             oscillator.frequency.setValueAtTime(frequency, context.currentTime); // Set frequency
-            oscillator.connect(context.destination);
 
+            oscillator.connect(gainNode);
             oscillator.start(0);
             isPlaying = true;
 
+            if (oscillationFrequency > 0) {
+                // Start volume oscillation loop
+                startVolumeOscillation(oscillationFrequency);
+            }
+
             // Set a timer to stop the sound after the specified duration (in minutes)
             timer = setTimeout(stopSound, duration * 60000); // 60000 ms = 1 minute
+        }
+
+        function startVolumeOscillation(oscillationFrequency) {
+            // Calculate oscillation duration (full cycle of volume up and down)
+            var oscillationPeriod = oscillationFrequency * 2; // Total time for full up and down
+
+            function loopVolumeOscillation() {
+                // Set volume to 1 (max), then descend to 0, then ascend back to 1
+                gainNode.gain.setValueAtTime(1, context.currentTime); // Start at full volume
+                gainNode.gain.linearRampToValueAtTime(0, context.currentTime + oscillationFrequency); // Fade out
+                gainNode.gain.linearRampToValueAtTime(1, context.currentTime + oscillationPeriod); // Fade in
+
+                // Recursively call this function after one oscillation period
+                if (isPlaying) {
+                    setTimeout(loopVolumeOscillation, oscillationPeriod * 1000); // Convert seconds to milliseconds
+                }
+            }
+
+            loopVolumeOscillation(); // Start the loop
         }
 
         function stopSound() {
@@ -140,20 +194,16 @@
             var frequency = parseFloat(document.getElementById('frequency').value);
             var waveType = document.getElementById('waveType').value;
             var duration = parseFloat(document.getElementById('duration').value);
+            var oscillationFrequency = parseFloat(document.getElementById('volumeOscillation').value);
 
             if (isPlaying) {
                 stopSound();
                 this.textContent = "Play";
             } else {
-                playSound(frequency, waveType, duration);
+                playSound(frequency, waveType, duration, oscillationFrequency);
                 this.textContent = "Stop";
             }
         });
     </script>
-
-    <!-- Bootstrap JS and dependencies (Popper.js and jQuery) -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
