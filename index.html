@@ -8,12 +8,13 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script>
         // Function to update the URL based on the current selections
-        function updateURLParams(frequency, waveType, duration, volumeOscillation) {
+        function updateURLParams(frequency, waveType, duration, volumeOscillation, frequency2) {
             const params = new URLSearchParams(window.location.search);
             params.set('frequency', frequency);
             params.set('waveType', waveType);
             params.set('duration', duration);
             params.set('volumeOscillation', volumeOscillation);
+            params.set('frequency2', frequency2);
             window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
         }
 
@@ -24,51 +25,37 @@
             const waveType = params.get('waveType') || 'sine';
             const duration = params.get('duration') || '3';
             const volumeOscillation = params.get('volumeOscillation') || '0';
+            const frequency2 = params.get('frequency2') || frequency;
 
             document.getElementById('frequency').value = frequency;
             document.getElementById('waveType').value = waveType;
             document.getElementById('duration').value = duration;
             document.getElementById('volumeOscillation').value = volumeOscillation;
+            document.getElementById('frequency2').value = frequency2;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
             loadParamsFromURL();  // Set form values from URL params
 
-            document.getElementById('frequency').addEventListener('change', function () {
-                const frequency = this.value;
-                const waveType = document.getElementById('waveType').value;
-                const duration = document.getElementById('duration').value;
-                const volumeOscillation = document.getElementById('volumeOscillation').value;
-                updateURLParams(frequency, waveType, duration, volumeOscillation);
-            });
+            const inputs = ['frequency', 'waveType', 'duration', 'volumeOscillation', 'frequency2'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('change', function () {
+                    const frequency = document.getElementById('frequency').value;
+                    const waveType = document.getElementById('waveType').value;
+                    const duration = document.getElementById('duration').value;
+                    const volumeOscillation = document.getElementById('volumeOscillation').value;
+                    const frequency2 = document.getElementById('frequency2').value;
+                    updateURLParams(frequency, waveType, duration, volumeOscillation, frequency2);
 
-            document.getElementById('waveType').addEventListener('change', function () {
-                const waveType = this.value;
-                const frequency = document.getElementById('frequency').value;
-                const duration = document.getElementById('duration').value;
-                const volumeOscillation = document.getElementById('volumeOscillation').value;
-                updateURLParams(frequency, waveType, duration, volumeOscillation);
-            });
-
-            document.getElementById('duration').addEventListener('change', function () {
-                const duration = this.value;
-                const frequency = document.getElementById('frequency').value;
-                const waveType = document.getElementById('waveType').value;
-                const volumeOscillation = document.getElementById('volumeOscillation').value;
-                updateURLParams(frequency, waveType, duration, volumeOscillation);
-            });
-
-            document.getElementById('volumeOscillation').addEventListener('input', function () {
-                const volumeOscillation = this.value;
-                const frequency = document.getElementById('frequency').value;
-                const waveType = document.getElementById('waveType').value;
-                const duration = document.getElementById('duration').value;
-                updateURLParams(frequency, waveType, duration, volumeOscillation);
-
-                // Update volume oscillation dynamically
-                if (isPlaying) {
-                    updateVolumeOscillation(parseFloat(volumeOscillation));
-                }
+                    // Update in real-time if sound is playing
+                    if (isPlaying) {
+                        if (frequency === frequency2) {
+                            updateVolumeOscillation(parseFloat(volumeOscillation));
+                        } else {
+                            updateFrequencyOscillation(parseFloat(frequency), parseFloat(frequency2), parseFloat(volumeOscillation));
+                        }
+                    }
+                });
             });
         });
     </script>
@@ -94,6 +81,20 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label for="frequency2">Frequency 2:</label>
+                        <select id="frequency2" name="frequency2" class="form-control">
+                            <option value="174">174 Hz: Alivia el dolor y el estrés</option>
+                            <option value="285">285 Hz: Sana los tejidos y los órganos</option>
+                            <option value="396">396 Hz: Elimina el miedo</option>
+                            <option value="417">417 Hz: Elimina la negatividad</option>
+                            <option value="528">528 Hz: Repara el ADN, trae transformaciones positivas</option>
+                            <option value="639">639 Hz: Trae amor y compasión a la vida</option>
+                            <option value="741">741 Hz: Desintoxica las células y los órganos</option>
+                            <option value="852">852 Hz: Despierta la intuición, eleva la energía a nivel celular</option>
+                            <option value="963">963 Hz: Conecta con el Ser Superior. Crea un espacio para la unidad.</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="waveType">Wave Type:</label>
                         <select id="waveType" name="waveType" class="form-control">
                             <option value="sine" selected>Sine</option>
@@ -107,7 +108,7 @@
                         <input type="number" id="duration" name="duration" class="form-control" value="1" min="1">
                     </div>
                     <div class="form-group">
-                        <label for="volumeOscillation">Volume Oscillation Frequency (seconds):</label>
+                        <label for="volumeOscillation">Oscillation Frequency (seconds):</label>
                         <input type="range" id="volumeOscillation" name="volumeOscillation" class="form-control-range" min="0" max="1" step="0.01" value="0">
                         <small id="frequencyHelp" class="form-text text-muted">0: Constant volume. 1: Full oscillation every second.</small>
                     </div>
@@ -141,7 +142,7 @@
             return gainNode;
         }
 
-        function playSound(frequency, type, duration, oscillationFrequency) {
+        function playSound(frequency, frequency2, type, duration, oscillationFrequency) {
             getOrCreateContext();
             getOrCreateGainNode();
 
@@ -152,17 +153,21 @@
 
             oscillator = context.createOscillator();
             oscillator.type = type;
-            oscillator.frequency.setValueAtTime(frequency, context.currentTime); // Set frequency
+            oscillator.frequency.setValueAtTime(frequency, context.currentTime); // Set initial frequency
 
             oscillator.connect(gainNode);
             oscillator.start(0);
             isPlaying = true;
 
-            // Set the initial oscillation frequency
-            currentOscillationFrequency = oscillationFrequency;
-            if (oscillationFrequency > 0) {
-                // Start volume oscillation loop
-                startVolumeOscillation(oscillationFrequency);
+            if (frequency === frequency2) {
+                // If both frequencies are the same, control volume oscillation
+                currentOscillationFrequency = oscillationFrequency;
+                if (oscillationFrequency > 0) {
+                    startVolumeOscillation(oscillationFrequency);
+                }
+            } else {
+                // If frequencies differ, control frequency oscillation
+                startFrequencyOscillation(frequency, frequency2, oscillationFrequency);
             }
 
             // Set a timer to stop the sound after the specified duration (in minutes)
@@ -170,26 +175,35 @@
         }
 
         function startVolumeOscillation(oscillationFrequency) {
-            // Calculate oscillation duration (full cycle of volume up and down)
             var oscillationPeriod = oscillationFrequency * 2; // Total time for full up and down
 
             function loopVolumeOscillation() {
                 if (!isPlaying) return; // Stop oscillating if sound is no longer playing
 
-                // Set volume to 1 (max), then descend to 0, then ascend back to 1
                 gainNode.gain.setValueAtTime(1, context.currentTime); // Start at full volume
                 gainNode.gain.linearRampToValueAtTime(0, context.currentTime + oscillationFrequency); // Fade out
-                gainNode.gain.linearRampToValueAtTime(1, context.currentTime + oscillationPeriod); // Fade in
+                gainNode.gain.linearRampToValueAtTime(1, context.currentTime + oscillationPeriod); // Fade back in
 
-                // Recursively call this function after one oscillation period
-                setTimeout(loopVolumeOscillation, oscillationPeriod * 1000); // Convert seconds to milliseconds
+                setTimeout(loopVolumeOscillation, oscillationPeriod * 1000); // Loop every oscillationPeriod seconds
             }
 
-            loopVolumeOscillation(); // Start the loop
+            loopVolumeOscillation();
         }
 
-        function updateVolumeOscillation(oscillationFrequency) {
-            currentOscillationFrequency = oscillationFrequency; // Update the current oscillation frequency
+        function startFrequencyOscillation(frequency, frequency2, oscillationFrequency) {
+            var oscillationPeriod = oscillationFrequency * 2; // Time to go from frequency to frequency2 and back
+
+            function loopFrequencyOscillation() {
+                if (!isPlaying) return; // Stop oscillating if sound is no longer playing
+
+                oscillator.frequency.setValueAtTime(frequency, context.currentTime); // Start at frequency
+                oscillator.frequency.linearRampToValueAtTime(frequency2, context.currentTime + oscillationFrequency); // Move to frequency2
+                oscillator.frequency.linearRampToValueAtTime(frequency, context.currentTime + oscillationPeriod); // Back to frequency
+
+                setTimeout(loopFrequencyOscillation, oscillationPeriod * 1000); // Loop every oscillationPeriod seconds
+            }
+
+            loopFrequencyOscillation();
         }
 
         function stopSound() {
@@ -204,6 +218,7 @@
 
         document.getElementById('toggleButton').addEventListener('click', function () {
             var frequency = parseFloat(document.getElementById('frequency').value);
+            var frequency2 = parseFloat(document.getElementById('frequency2').value);
             var waveType = document.getElementById('waveType').value;
             var duration = parseFloat(document.getElementById('duration').value);
             var oscillationFrequency = parseFloat(document.getElementById('volumeOscillation').value);
@@ -212,10 +227,15 @@
                 stopSound();
                 this.textContent = "Play";
             } else {
-                playSound(frequency, waveType, duration, oscillationFrequency);
+                playSound(frequency, frequency2, waveType, duration, oscillationFrequency);
                 this.textContent = "Stop";
             }
         });
     </script>
+
+    <!-- Bootstrap JS and dependencies (Popper.js and jQuery) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
